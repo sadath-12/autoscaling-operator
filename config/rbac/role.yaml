@@ -1,0 +1,34 @@
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - buildpiper.opstreelabs.in
+  resources:
+  - customautoscalings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - buildpiper.opstreelabs.in
+  resources:
+  - customautoscalings/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - buildpiper.opstreelabs.in
+  resources:
+  - customautoscalings/status
+  verbs:
+  - get
+  - patch
+  - update

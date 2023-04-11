@@ -1,0 +1,77 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: customautoscalings.buildpiper.opstreelabs.in
+spec:
+  group: buildpiper.opstreelabs.in
+  names:
+    kind: CustomAutoScaling
+    listKind: CustomAutoScalingList
+    plural: customautoscalings
+    singular: customautoscaling
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: CustomAutoScaling is the Schema for the customautoscalings API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CustomAutoScalingSpec defines the desired state of CustomAutoScaling
+            properties:
+              applicationRef:
+                description: ApplicationReference defines the deployment to scale
+                properties:
+                  deploymentName:
+                    type: string
+                required:
+                - deploymentName
+                type: object
+              scalingParamsMapping:
+                additionalProperties:
+                  type: string
+                type: object
+              scalingQuery:
+                type: string
+            required:
+            - applicationRef
+            - scalingParamsMapping
+            - scalingQuery
+            type: object
+          status:
+            description: CustomAutoScalingStatus defines the observed state of CustomAutoScaling
+            properties:
+              replicas:
+                format: int32
+                type: integer
+            required:
+            - replicas
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

@@ -1,0 +1,12 @@
+apiVersion: buildpiper.opstreelabs.in/v1
+kind: CustomAutoScaling
+metadata:
+  labels:
+    app.kubernetes.io/name: customautoscaling
+    app.kubernetes.io/instance: customautoscaling-sample
+    app.kubernetes.io/part-of: autoscaler
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: autoscaler
+  name: customautoscaling-sample
+spec:
+  # TODO(user): Add fields here
