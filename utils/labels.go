@@ -34,6 +34,18 @@ func generateAlertLabels(name,setupType string,labels map[string]string) map[str
 		
 	return lbls
 }
+func generatePromLabels(name,target string,labels map[string]string) map[string]string {
+	lbls := map[string]string{
+		"app":name,
+		"target_job":target,
+	}
+
+	for k,v := range labels {
+		lbls[k]=v 
+	}
+		
+	return lbls
+}
 
 func generateAlertAnots(app metav1.ObjectMeta) map[string]string {
 	anots := map[string]string{

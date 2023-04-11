@@ -25,11 +25,12 @@ type CustomAutoScalingSpec struct {
 	ApplicationRef       ApplicationReference `json:"applicationRef"`
 	ScalingParamsMapping map[string]string    `json:"scalingParamsMapping"`
 	ScalingQuery         string               `json:"scalingQuery"`
-} 
+}
 
 // ApplicationReference defines the deployment to scale
 type ApplicationReference struct {
 	DeploymentName string `json:"deploymentName"`
+	DeploymentPort string `json:"deploymentPort"`
 }
 
 // CustomAutoScalingStatus defines the observed state of CustomAutoScaling

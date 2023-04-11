@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client" 
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	autoscaler "buildpiper.opstreelabs.in/autoscaler/api/v1"
@@ -142,8 +142,9 @@ func (r *CustomAutoScalingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		} else {
 			reqLogger.Error(fmt.Errorf("error while fetching service monitor for prometheus %s", err.Error()), "")
 		}
-
 	}
+	
+
 
 	// create prometheus service
 

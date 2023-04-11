@@ -13,6 +13,7 @@ metadata:
 spec:
   applicationRef:
     deploymentName: exporter-deployment
+    
   scalingParamsMapping:
     cpu: 500m
     memory: 256Mi

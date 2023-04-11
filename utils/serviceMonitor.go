@@ -10,14 +10,20 @@ import (
 	autoscaler "buildpiper.opstreelabs.in/autoscaler/api/v1"
 )
 
+
+type SVCMonitorParams struct {
+	Name       string
+	ObjectMeta metav1.ObjectMeta
+	Namespace  string
+	selector   map[string]string
+	Endpoints  []v1.Endpoint
+}
+
 func generateSVCMonitorDef(params SVCMonitorParams) *v1.ServiceMonitor {
 
 	svcMonitor := &v1.ServiceMonitor{
 		TypeMeta: generateMetaInformation("ServiceMonitor", "monitoring.coreos.com/v1"),
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      params.Name,
-			Namespace: params.Namespace,
-		},
+		ObjectMeta:generateObjectMetaInformation(params.Name,params.Namespace,params.ObjectMeta.Labels,params.ObjectMeta.Annotations),
 		Spec: v1.ServiceMonitorSpec{
 			Selector: metav1.LabelSelector{
 				MatchLabels: params.selector,

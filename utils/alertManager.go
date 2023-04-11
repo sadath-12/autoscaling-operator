@@ -64,7 +64,7 @@ func CreateAlertManager(cr *autoscaler.CustomAutoScaling, config string, replica
 			"name": config,
 		},
 		Replicas: replicas,
-		image:    "prometheus/alertmanager:v0.25.0",
+		image:    "quay.io/prometheus/alertmanager:v0.25.0",
 	}
 
 	alertManagerDef := generateAlertManagerDef(params)
