@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client" 
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	autoscaler "buildpiper.opstreelabs.in/autoscaler/api/v1"
@@ -54,6 +54,7 @@ func (r *CustomAutoScalingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	// handler finalizer
+	
 
 	// check sa
 
@@ -122,11 +123,22 @@ func (r *CustomAutoScalingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 	}
 
-	// create alertManager config
+	// create alert managers with config and rules
 
-	// create alert managers
+	_, err = utils.GetAlertManager(instance)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("AlertManager %s doesnt exist creating now ....", instance.Name+"-alert")
 
-	// create rules
+			_, err = utils.CreateAlertManager(instance, 3)
+			if err != nil {
+				reqLogger.Error(fmt.Errorf("error while creating alertmanager  %s", err.Error()), "")
+				return ctrl.Result{}, nil
+			}
+		} else {
+			reqLogger.Error(fmt.Errorf("error while fetching alertmanager for prometheus %s", err.Error()), "")
+		}
+	}
 
 	// if prometheus not der then create prometheus instance
 
@@ -143,8 +155,6 @@ func (r *CustomAutoScalingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			reqLogger.Error(fmt.Errorf("error while fetching service monitor for prometheus %s", err.Error()), "")
 		}
 	}
-	
-
 
 	// create prometheus service
 

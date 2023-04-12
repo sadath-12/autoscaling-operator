@@ -18,19 +18,20 @@ type AlertManagerParams struct {
 	Replicas       int32
 	ConfigSelector map[string]string
 	image          string
+	Secrets        []string
 }
 
-func GetAlertManager(name, namespace string) (*v1.Alertmanager, error) {
-	alertManagerName := name + "-alert"
-	logger := k8sLogger(namespace, name+"-alert")
+func GetAlertManager(cr *autoscaler.CustomAutoScaling) (*v1.Alertmanager, error) {
+	alertManagerName := cr.Name + "-alert"
+	logger := k8sLogger(cr.Namespace, cr.Name+"-alert")
 	client, err := generatePromClient()
 
 	if err != nil {
-		logger.Error(fmt.Errorf("error while fetching prometheus client  %s  in namespace %s : %s", name, namespace, err.Error()), "")
+		logger.Error(fmt.Errorf("error while fetching prometheus client  %s  in namespace %s : %s", cr.Name, cr.Namespace, err.Error()), "")
 		panic(err)
 	}
 
-	alertManager, err := client.MonitoringV1().Alertmanagers(namespace).Get(context.TODO(), alertManagerName, metav1.GetOptions{})
+	alertManager, err := client.MonitoringV1().Alertmanagers(cr.Namespace).Get(context.TODO(), alertManagerName, metav1.GetOptions{})
 
 	if err != nil {
 		logger.Error(fmt.Errorf("unable to fetch alertManager %s", err.Error()), "")
@@ -42,13 +43,20 @@ func GetAlertManager(name, namespace string) (*v1.Alertmanager, error) {
 
 }
 
-func CreateAlertManager(cr *autoscaler.CustomAutoScaling, config string, replicas int32) (*v1.Alertmanager, error) {
+func CreateAlertManager(cr *autoscaler.CustomAutoScaling, replicas int32) (*v1.Alertmanager, error) {
 	alertManagerName := cr.Name + "-alert"
 	logger := k8sLogger(cr.Namespace, cr.Name+"-alert")
 	client, err := generatePromClient()
 
 	if err != nil {
 		logger.Error(fmt.Errorf("error while fetching prometheus client  %s  in namespace %s : %s", alertManagerName, cr.Namespace, err.Error()), "")
+		panic(err)
+	}
+
+	_,err = createAlertConfigSecret(cr)
+
+	if err != nil {
+		logger.Error(fmt.Errorf("error while creating alert secret %s  in namespace %s : %s", alertManagerName+"secret", cr.Namespace, err.Error()), "")
 		panic(err)
 	}
 
@@ -61,10 +69,11 @@ func CreateAlertManager(cr *autoscaler.CustomAutoScaling, config string, replica
 		TypeMeta:   generateMetaInformation("Alertmanager", "monitoring.coreos.com/v1"),
 		ObjectMeta: generateObjectMetaInformation(alertManagerName, cr.Namespace, labels, annotations),
 		ConfigSelector: map[string]string{
-			"name": config,
+			"name": alertManagerName + "config",
 		},
 		Replicas: replicas,
 		image:    "quay.io/prometheus/alertmanager:v0.25.0",
+		Secrets: []string{alertManagerName+"secret"},
 	}
 
 	alertManagerDef := generateAlertManagerDef(params)
@@ -98,11 +107,13 @@ func generateAlertManagerDef(params AlertManagerParams) *v1.Alertmanager {
 		},
 
 		Spec: v1.AlertmanagerSpec{
+
 			Replicas: &params.Replicas,
 
 			AlertmanagerConfigSelector: &metav1.LabelSelector{
 				MatchLabels: params.ConfigSelector,
 			},
+			Secrets: params.Secrets,
 			Image: &params.image,
 			SecurityContext: &main.PodSecurityContext{
 				RunAsUser:    &runAsUser,

@@ -107,7 +107,7 @@ func CreatePrometheusInstance(cr *autoscaler.CustomAutoScaling) (*v1.Prometheus,
 		IgnoreNamespaceSelectors:  false,
 		QueryLogFile:              "",
 		// need to define the secret
-		AdditionalScrapeConfigs: &main.SecretKeySelector{
+		AdditionalScrapeConfigs: &main.SecretKeySelector{ 
 			LocalObjectReference: main.LocalObjectReference{
 				Name: cr.Name + "-secret",
 			},
@@ -207,7 +207,7 @@ func generatePrometheusDef(params PrometheusParams, cr *autoscaler.CustomAutoSca
 			Retention:         v1.Duration(params.Retention),
 			RetentionSize:     v1.ByteSize(params.RetentionSize),
 			DisableCompaction: params.DisableCompaction,
-			// QueryLogFile: params.QueryLogFile,
+			QueryLogFile: params.QueryLogFile,
 
 			EnableAdminAPI: false,
 		},
@@ -216,3 +216,11 @@ func generatePrometheusDef(params PrometheusParams, cr *autoscaler.CustomAutoSca
 	return prometheus, nil
 
 }
+
+
+
+
+
+
+
+
