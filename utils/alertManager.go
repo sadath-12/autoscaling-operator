@@ -2,11 +2,13 @@ package utils
 
 import (
 	"context"
+
 	"fmt"
 
 	autoscaler "buildpiper.opstreelabs.in/autoscaler/api/v1"
 	v1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	main "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -53,7 +55,18 @@ func CreateAlertManager(cr *autoscaler.CustomAutoScaling, replicas int32) (*v1.A
 		panic(err)
 	}
 
-	_,err = createAlertConfigSecret(cr)
+	_, err = getSecret(cr, alertManagerName+"secret")
+	if err != nil {
+		if errors.IsAlreadyExists(err) || errors.IsNotFound(err) {
+
+			_, err = createAlertConfigSecret(cr)
+			if err != nil {
+				panic(err)
+			}
+		}
+		panic(err)
+
+	}
 
 	if err != nil {
 		logger.Error(fmt.Errorf("error while creating alert secret %s  in namespace %s : %s", alertManagerName+"secret", cr.Namespace, err.Error()), "")
@@ -73,7 +86,7 @@ func CreateAlertManager(cr *autoscaler.CustomAutoScaling, replicas int32) (*v1.A
 		},
 		Replicas: replicas,
 		image:    "quay.io/prometheus/alertmanager:v0.25.0",
-		Secrets: []string{alertManagerName+"secret"},
+		Secrets:  []string{alertManagerName + "secret"},
 	}
 
 	alertManagerDef := generateAlertManagerDef(params)
@@ -114,7 +127,7 @@ func generateAlertManagerDef(params AlertManagerParams) *v1.Alertmanager {
 				MatchLabels: params.ConfigSelector,
 			},
 			Secrets: params.Secrets,
-			Image: &params.image,
+			// Image:   &params.image,
 			SecurityContext: &main.PodSecurityContext{
 				RunAsUser:    &runAsUser,
 				RunAsNonRoot: &runAsNonRoot,
@@ -127,4 +140,32 @@ func generateAlertManagerDef(params AlertManagerParams) *v1.Alertmanager {
 	}
 
 	return &alertManager
+}
+
+func CreateAlertManagerService(cr *autoscaler.CustomAutoScaling) (*main.Service, error) {
+	name := cr.Name + "-alert-service"
+	logger := k8sLogger(cr.Namespace, name)
+
+	params := ServiceParams{
+		Name:       name,
+		Namespace:  cr.Namespace,
+		Port:       9093,
+		TargetPort: 9093,
+		TargetApp:  cr.Name + "-alert",
+		Type:       "NodePort",
+		NodePort:   30900,
+	}
+
+	service, err := CreateService(cr, params)
+
+	if err != nil {
+
+		logger.Error(fmt.Errorf("error while creating prometheus  service  %s  in namespace %s : %s", name, cr.Namespace, err.Error()), "")
+		panic(err)
+	}
+
+	logger.Info("Prometheus service created succesfully")
+
+	return service, nil
+
 }

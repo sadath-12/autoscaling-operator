@@ -10,8 +10,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func getSecret(cr *autoscaler.CustomAutoScaling) (*main.Secret, error) {
-	secretName := cr.Name + "-secret"
+func getSecret(cr *autoscaler.CustomAutoScaling, name string) (*main.Secret, error) {
+	secretName := name
 	logger := k8sLogger(cr.Namespace, secretName)
 
 	secret, err := generateK8sClient().CoreV1().Secrets(cr.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
@@ -89,12 +89,12 @@ func createAlertConfigSecret(cr *autoscaler.CustomAutoScaling) (*main.Secret, er
 func generateAlertsecretDef(cr *autoscaler.CustomAutoScaling) *main.Secret {
 	secret := &v1.Secret{
 		TypeMeta:   generateMetaInformation("Secret", "v1"),
-		ObjectMeta: generateObjectMetaInformation(cr.Name+"alertsecret", cr.Namespace, cr.Labels, cr.Annotations),
+		ObjectMeta: generateObjectMetaInformation(cr.Name+"-alertsecret", cr.Namespace, cr.Labels, cr.Annotations),
 		StringData: map[string]string{
 			"alertmanager.yaml": `
 global:
   resolve_timeout: 5m
-inhibit_rules:
+inhibit_rules: 
 - source_matchers:
   - 'severity = critical'
   target_matchers:

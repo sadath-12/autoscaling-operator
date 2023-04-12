@@ -1,21 +1,17 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: customautoscaling
 
----
  
 apiVersion: buildpiper.opstreelabs.in/v1
 kind: CustomAutoScaling
 metadata:
   name: my-autoscaler
-  namespace: customautoscaling
+  namespace: test
 spec:
   applicationRef:
     deploymentName: exporter-deployment
+    deploymentPort: "8090"
     
   scalingParamsMapping:
     cpu: 500m
-    memory: 256Mi
+    memory: 400Mi
   scalingQuery: |
     sum(rate(container_cpu_usage_seconds_total{namespace="{{ .Namespace }}",pod_name="{{ .Name }}"}[1m])) by (pod_name)

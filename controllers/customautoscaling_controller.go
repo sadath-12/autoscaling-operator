@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,17 +32,9 @@ func (r *CustomAutoScalingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	reqLogger.Info("reconcilling autoscaler.....")
 
-	var memory string
-
 	// retrieve the cr
 	instance := &autoscaler.CustomAutoScaling{}
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
-
-	memory = instance.Spec.ScalingParamsMapping["memory"]
-
-	if memory == "" {
-		memory = "256Mi"
-	}
 
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -50,18 +43,29 @@ func (r *CustomAutoScalingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 		reqLogger.Error(fmt.Errorf("error while fetching CustomAutoscaling  %s", err.Error()), "")
 		return ctrl.Result{}, nil
+	}
 
+	if _, found := instance.ObjectMeta.GetAnnotations()["buildpiper.opstreelabs.in/skip-reconcile"]; found {
+		reqLogger.Info("Found annotations buildpiper.opstreelabs.in/skip-reconcile", "so skipping reconcile")
+		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
 
 	// handler finalizer
-	
+
+	if err := utils.HandleAutoScalerFinalizer(instance, r.Client); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := utils.AddCustomautoscaleFinalizer(instance, r.Client); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	// check sa
 
 	_, err = utils.GetSAccount(instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("service account %s doesnt exists creating service account ...............", instance.Name+"-sa")
+			reqLogger.Info("service account", instance.Name+"-sa", "doesnt exists creating service account ...............")
 			_, err = utils.CreateServiceAccount(instance)
 			if err != nil {
 				fmt.Print("getting error while creating acc .............. ", err.Error())
@@ -74,12 +78,12 @@ func (r *CustomAutoScalingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 	}
 
-	// check role
+	// // check role
 
 	_, err = utils.GetClusterRole(instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Cluster Role %s doesnt exists creating now .....", instance.Name+"--clusterrole")
+			reqLogger.Info("Cluster Role", instance.Name+"--clusterrole", "doesnt exists creating now .....")
 			_, err = utils.CreateClusterRole(instance)
 			if err != nil {
 				reqLogger.Error(fmt.Errorf("error while creating cluster role for prometheus %s", err.Error()), "")
@@ -91,12 +95,12 @@ func (r *CustomAutoScalingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 	}
 
-	// check rolebinding
+	// // check rolebinding
 
 	_, err = utils.GetRoleBinding(instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Cluster Rolebindng %s doesnt exists creating now .....", instance.Name+"-rolebinding")
+			reqLogger.Info("Cluster Rolebindng", instance.Name+"-rolebinding", " doesnt exists creating now .....")
 			_, err = utils.CreateClusterRoleBinding(instance)
 			if err != nil {
 				reqLogger.Error(fmt.Errorf("error while creating cluster role for prometheus %s", err.Error()), "")
@@ -112,7 +116,7 @@ func (r *CustomAutoScalingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	_, err = utils.GetSVCMonitor(instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("ServiceMonitor %s doesnt exist creating now ....", instance.Name+"-svcm")
+			reqLogger.Info("ServiceMonitor", instance.Name+"-svcm", "doesnt exist creating now ....")
 			_, err = utils.CreateSVCMonitor(instance)
 			if err != nil {
 				reqLogger.Error(fmt.Errorf("error while creating service monitor for prometheus %s", err.Error()), "")
@@ -128,7 +132,7 @@ func (r *CustomAutoScalingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	_, err = utils.GetAlertManager(instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("AlertManager %s doesnt exist creating now ....", instance.Name+"-alert")
+			reqLogger.Info("AlertManager", instance.Name+"-alert", "doesnt exist creating now ....")
 
 			_, err = utils.CreateAlertManager(instance, 3)
 			if err != nil {
@@ -140,12 +144,10 @@ func (r *CustomAutoScalingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 	}
 
-	// if prometheus not der then create prometheus instance
-
 	_, err = utils.GetPrometheusInstance(instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Prometheus Instance %s doesnt exist creating now ....", instance.Name+"-instance")
+			reqLogger.Info("Prometheus Instance", instance.Name+"-prometheus-instance", "doesnt exist creating now ....")
 			_, err = utils.CreatePrometheusInstance(instance)
 			if err != nil {
 				reqLogger.Error(fmt.Errorf("error while creating prometheus instance  %s", err.Error()), "")
@@ -156,15 +158,11 @@ func (r *CustomAutoScalingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 	}
 
-	// create prometheus service
-
-	// retreive the alert from the manager through webhook if firing
-
 	// calculate the replica
 
 	// find and scale the deployment
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

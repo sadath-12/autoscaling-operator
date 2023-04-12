@@ -45,10 +45,8 @@ type PrometheusParams struct {
 	QueryLogFile              string
 }
 
-
-
 func GetPrometheusInstance(cr *autoscaler.CustomAutoScaling) (*v1.Prometheus, error) {
-	logger := k8sLogger(cr.Namespace, cr.Name+"-instance")
+	logger := k8sLogger(cr.Namespace, cr.Name+"-prometheus-instance")
 	client, err := generatePromClient()
 
 	if err != nil {
@@ -56,7 +54,7 @@ func GetPrometheusInstance(cr *autoscaler.CustomAutoScaling) (*v1.Prometheus, er
 		panic(err)
 	}
 
-	promInstance, err := client.MonitoringV1().Prometheuses(cr.Namespace).Get(context.TODO(), cr.Name+"-instance", metav1.GetOptions{})
+	promInstance, err := client.MonitoringV1().Prometheuses(cr.Namespace).Get(context.TODO(), cr.Name+"-prometheus-instance", metav1.GetOptions{})
 	if err != nil {
 		logger.Error(fmt.Errorf("unable to create clusterrolebinding %s", err.Error()), "")
 		return nil, err
@@ -68,7 +66,7 @@ func GetPrometheusInstance(cr *autoscaler.CustomAutoScaling) (*v1.Prometheus, er
 
 // Create a new Prometheus instance.
 func CreatePrometheusInstance(cr *autoscaler.CustomAutoScaling) (*v1.Prometheus, error) {
-	logger := k8sLogger(cr.Namespace, cr.Name+"-instance")
+	logger := k8sLogger(cr.Namespace, cr.Name+"-prometheus-instance")
 	client, err := generatePromClient()
 
 	if err != nil {
@@ -76,19 +74,19 @@ func CreatePrometheusInstance(cr *autoscaler.CustomAutoScaling) (*v1.Prometheus,
 		panic(err)
 	}
 	promData := PrometheusParams{
-		Name:      cr.Name + "-instance",
+		Name:      cr.Name + "-prometheus-instance",
 		Namespace: cr.Namespace,
 		SVCMonitorSelector: map[string]string{
-			"app": cr.Name + "svcm",
+			"team": "frontend",
 		},
-		Image:             "quay.io/prometheus/prometheus",
+		Image:             "quay.io/prometheus/prometheus:v2.42.0",
 		SAName:            cr.Name + "-sa",
 		Memory:            cr.Spec.ScalingParamsMapping["memory"],
 		AlertManager:      cr.Name + "-alert",
-		AlertPort:         cr.Name + "-alertport",
+		AlertPort:         "alert-port",
 		Replicas:          3,
 		Shards:            1,
-		LogLevel:          "Info",
+		LogLevel:          "info",
 		RoutePrefix:       "/",
 		Retention:         "20d",
 		DisableCompaction: false,
@@ -107,7 +105,7 @@ func CreatePrometheusInstance(cr *autoscaler.CustomAutoScaling) (*v1.Prometheus,
 		IgnoreNamespaceSelectors:  false,
 		QueryLogFile:              "",
 		// need to define the secret
-		AdditionalScrapeConfigs: &main.SecretKeySelector{ 
+		AdditionalScrapeConfigs: &main.SecretKeySelector{
 			LocalObjectReference: main.LocalObjectReference{
 				Name: cr.Name + "-secret",
 			},
@@ -135,14 +133,15 @@ func CreatePrometheusInstance(cr *autoscaler.CustomAutoScaling) (*v1.Prometheus,
 }
 
 func generatePrometheusDef(params PrometheusParams, cr *autoscaler.CustomAutoScaling) (*v1.Prometheus, error) {
-	logger := k8sLogger(cr.Namespace, cr.Name+"-secret")
+	secretName := cr.Name + "-secret"
+	logger := k8sLogger(cr.Namespace, secretName)
 
 	var err error
 
-	_, err = getSecret(cr)
+	_, err = getSecret(cr, secretName)
 
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if errors.IsAlreadyExists(err) || errors.IsNotFound(err) {
 			logger.Info("Secret doesnt exist for scrape config , creating now .......")
 			_, err := createSecret(cr)
 			if err != nil {
@@ -156,7 +155,7 @@ func generatePrometheusDef(params PrometheusParams, cr *autoscaler.CustomAutoSca
 
 	}
 	lbls := generatePromLabels(params.Name, cr.Spec.ApplicationRef.DeploymentName, cr.Labels)
-	objectMeta := generateObjectMetaInformation(cr.Name+"instance", cr.Namespace, lbls, cr.Annotations)
+	objectMeta := generateObjectMetaInformation(params.Name, cr.Namespace, lbls, cr.Annotations)
 
 	prometheus := &v1.Prometheus{
 		TypeMeta: generateMetaInformation("Prometheus", "monitoring.coreos.com/v1"),
@@ -165,7 +164,7 @@ func generatePrometheusDef(params PrometheusParams, cr *autoscaler.CustomAutoSca
 
 		Spec: v1.PrometheusSpec{
 			// depricated
-			// BaseImage: params.Image,
+			BaseImage: params.Image,
 
 			Alerting: &v1.AlertingSpec{
 				Alertmanagers: []v1.AlertmanagerEndpoints{
@@ -173,7 +172,7 @@ func generatePrometheusDef(params PrometheusParams, cr *autoscaler.CustomAutoSca
 					{
 
 						Namespace: params.Namespace,
-						Name:      params.AlertManager + "Alert",
+						Name:      params.AlertManager,
 						Port: intstr.IntOrString{
 							Type:   intstr.String,
 							StrVal: params.AlertPort,
@@ -195,21 +194,21 @@ func generatePrometheusDef(params PrometheusParams, cr *autoscaler.CustomAutoSca
 						main.ResourceMemory: resource.MustParse(params.Memory),
 					},
 				},
-				LogLevel:                  params.LogLevel,
-				LogFormat:                 params.LogFormat,
-				ScrapeInterval:            v1.Duration(params.ScrapeInterval),
-				EnableRemoteWriteReceiver: params.EnableRemoteWriteReceiver,
-				RoutePrefix:               params.RoutePrefix,
-				ListenLocal:               params.ListenLocal,
-				AdditionalScrapeConfigs:   params.AdditionalScrapeConfigs,
-				IgnoreNamespaceSelectors:  params.IgnoreNamespaceSelectors,
+				// LogLevel:                  params.LogLevel,
+				// LogFormat:                 params.LogFormat,
+				ScrapeInterval: v1.Duration(params.ScrapeInterval),
+				// EnableRemoteWriteReceiver: params.EnableRemoteWriteReceiver,
+				// RoutePrefix:               params.RoutePrefix,
+				// ListenLocal:               params.ListenLocal,
+				// AdditionalScrapeConfigs:   params.AdditionalScrapeConfigs,
+				// IgnoreNamespaceSelectors:  params.IgnoreNamespaceSelectors,
 			},
 			Retention:         v1.Duration(params.Retention),
 			RetentionSize:     v1.ByteSize(params.RetentionSize),
 			DisableCompaction: params.DisableCompaction,
-			QueryLogFile: params.QueryLogFile,
+			QueryLogFile:      params.QueryLogFile,
 
-			EnableAdminAPI: false,
+			EnableAdminAPI: true,
 		},
 	}
 
@@ -217,10 +216,30 @@ func generatePrometheusDef(params PrometheusParams, cr *autoscaler.CustomAutoSca
 
 }
 
+func CreatePrometheusService(cr *autoscaler.CustomAutoScaling) (*main.Service, error) {
+	name := cr.Name + "-prometheus-service"
+	logger := k8sLogger(cr.Namespace, name)
 
+	params := ServiceParams{
+		Name:       name,
+		Namespace:  cr.Namespace,
+		Port:       9090,
+		TargetPort: 9090,
+		TargetApp:  cr.Name + "-prometheus-instance",
+		Type:       "NodePort",
+		NodePort:   30901,
+	}
 
+	service, err := CreateService(cr, params)
 
+	if err != nil {
 
+		logger.Error(fmt.Errorf("error while creating prometheus  service  %s  in namespace %s : %s", name, cr.Namespace, err.Error()), "")
+		panic(err)
+	}
 
+	logger.Info("Prometheus service created succesfully")
 
+	return service, nil
 
+}

@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	autoscaler "buildpiper.opstreelabs.in/autoscaler/api/v1"
 	v1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	autoscaler "buildpiper.opstreelabs.in/autoscaler/api/v1"
 )
-
 
 type SVCMonitorParams struct {
 	Name       string
@@ -17,17 +16,21 @@ type SVCMonitorParams struct {
 	Namespace  string
 	selector   map[string]string
 	Endpoints  []v1.Endpoint
+	Image      string
 }
 
-func generateSVCMonitorDef(params SVCMonitorParams) *v1.ServiceMonitor {
+func generateSVCMonitorDef(cr *autoscaler.CustomAutoScaling, params SVCMonitorParams) *v1.ServiceMonitor {
 
+	lbls := generateSVCMLabels(params.Name, cr.ObjectMeta.Labels)
 	svcMonitor := &v1.ServiceMonitor{
 		TypeMeta: generateMetaInformation("ServiceMonitor", "monitoring.coreos.com/v1"),
-		ObjectMeta:generateObjectMetaInformation(params.Name,params.Namespace,params.ObjectMeta.Labels,params.ObjectMeta.Annotations),
+
+		ObjectMeta: generateObjectMetaInformation(params.Name, params.Namespace, lbls, params.ObjectMeta.Annotations),
 		Spec: v1.ServiceMonitorSpec{
 			Selector: metav1.LabelSelector{
 				MatchLabels: params.selector,
 			},
+
 			Endpoints: params.Endpoints,
 		},
 	}
@@ -37,7 +40,7 @@ func generateSVCMonitorDef(params SVCMonitorParams) *v1.ServiceMonitor {
 }
 
 func GetSVCMonitor(cr *autoscaler.CustomAutoScaling) (*v1.ServiceMonitor, error) {
-	svcMonitorName := cr.Name + "svcm"
+	svcMonitorName := cr.Name + "-svcm"
 	logger := k8sLogger(cr.Namespace, svcMonitorName)
 	client, err := generatePromClient()
 
@@ -62,10 +65,10 @@ func GetSVCMonitor(cr *autoscaler.CustomAutoScaling) (*v1.ServiceMonitor, error)
 }
 
 func CreateSVCMonitor(cr *autoscaler.CustomAutoScaling) (*v1.ServiceMonitor, error) {
-	svcMonitorName := cr.Name + "svcm"
+	svcMonitorName := cr.Name + "-svcm"
 	logger := k8sLogger(cr.Namespace, svcMonitorName)
 	client, err := generatePromClient()
- 
+
 	if err != nil {
 		logger.Error(fmt.Errorf("error while fetching prometheus client  %s  in namespace %s : %s", svcMonitorName, cr.Namespace, err.Error()), "")
 		panic(err)
@@ -87,7 +90,7 @@ func CreateSVCMonitor(cr *autoscaler.CustomAutoScaling) (*v1.ServiceMonitor, err
 		},
 		Endpoints: endpoints,
 	}
-	SVCDef := generateSVCMonitorDef(params)
+	SVCDef := generateSVCMonitorDef(cr, params)
 
 	svcMonitor, err := client.MonitoringV1().ServiceMonitors(cr.Namespace).Create(context.TODO(), SVCDef, metav1.CreateOptions{})
 

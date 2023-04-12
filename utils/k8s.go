@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	autoscaler "buildpiper.opstreelabs.in/autoscaler/api/v1"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	autoscaler "buildpiper.opstreelabs.in/autoscaler/api/v1"
 )
 
 func GetSAccount(cr *autoscaler.CustomAutoScaling) (*corev1.ServiceAccount, error) {
@@ -146,7 +146,7 @@ func CreateClusterRoleBinding(cr *autoscaler.CustomAutoScaling) (*rbacv1.Cluster
 	binding := cr.Name + "-rolebinding"
 	logger := k8sLogger(cr.Namespace, binding)
 	client := generateK8sClient()
-	clusterRoleBindingDef := generateClusterRoleBindindingDef(binding, cr.Namespace,cr.Name+"-sa")
+	clusterRoleBindingDef := generateClusterRoleBindindingDef(binding, cr.Namespace, cr.Name+"-sa")
 	roleBinding, err := client.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterRoleBindingDef, metav1.CreateOptions{})
 	if err != nil {
 		logger.Error(fmt.Errorf("unable to create clusterrolebinding %s", err.Error()), "")
@@ -157,7 +157,7 @@ func CreateClusterRoleBinding(cr *autoscaler.CustomAutoScaling) (*rbacv1.Cluster
 	return roleBinding, nil
 }
 
-func generateClusterRoleBindindingDef(name, namespace,sa string) *rbacv1.ClusterRoleBinding {
+func generateClusterRoleBindindingDef(name, namespace, sa string) *rbacv1.ClusterRoleBinding {
 	clusterRolebinding := &rbacv1.ClusterRoleBinding{
 		TypeMeta: generateMetaInformation("ClusterRoleBinding", " rbac.authorization.k8s.io/v1"),
 		ObjectMeta: metav1.ObjectMeta{
@@ -180,6 +180,6 @@ func generateClusterRoleBindindingDef(name, namespace,sa string) *rbacv1.Cluster
 }
 
 func k8sLogger(namespace string, name string) logr.Logger {
-	reqLogger := log.WithValues("Request.Service.Namespace", namespace, "Request.Service.Name", name)
+	reqLogger := log.WithValues("Request.Service.Namespace", "Request.Service.Name", namespace, name)
 	return reqLogger
 }
