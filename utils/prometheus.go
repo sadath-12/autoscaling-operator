@@ -163,10 +163,12 @@ func generatePrometheusDef(params PrometheusParams, cr *autoscaler.CustomAutoSca
 
 		ObjectMeta: objectMeta,
 
+		
 		Spec: v1.PrometheusSpec{
 			// depricated
 			BaseImage: params.Image,
 
+			
 			Alerting: &v1.AlertingSpec{
 				Alertmanagers: []v1.AlertmanagerEndpoints{
 
@@ -181,6 +183,8 @@ func generatePrometheusDef(params PrometheusParams, cr *autoscaler.CustomAutoSca
 					},
 				},
 			},
+
+
 
 			CommonPrometheusFields: v1.CommonPrometheusFields{
 				// this has more precedence
@@ -243,4 +247,42 @@ func CreatePrometheusService(cr *autoscaler.CustomAutoScaling) (*main.Service, e
 
 	return service, nil
 
+}
+
+
+func CreatePrometheusRule(cr *autoscaler.CustomAutoScaling) (*v1.PrometheusRule,error){
+
+	logger := k8sLogger(cr.Namespace, cr.Name+"-prometheus-instance")
+	client, err := generatePromClient()
+	
+
+	if err != nil {
+		logger.Error(fmt.Errorf("error while fetching prometheus client  %s  in namespace %s : %s", cr.Name, cr.Namespace, err.Error()), "")
+		panic(err)
+	}
+
+	prometheusRule := &v1.PrometheusRule{
+        ObjectMeta: metav1.ObjectMeta{
+            Name:      "my-rules",
+            Namespace: "default",
+        },
+        Spec: v1.PrometheusRuleSpec{
+            Groups: []v1.RuleGroup{
+                {
+                    Name: "Count greater than 5",
+                    Rules: []v1.Rule{
+                        {
+                            Alert: "CountGreaterThan5",
+                            Expr:  intstr.FromString("ping_request_count > 5"),
+                            For:   "10s",
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+	promRule, err := client.MonitoringV1().PrometheusRules("default").Create(context.Background(), prometheusRule, metav1.CreateOptions{})
+
+	return promRule,nil
 }

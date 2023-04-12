@@ -1,0 +1,14 @@
+apiVersion: v1
+data:
+  alertmanager.yaml: Cmdsb2JhbDoKICByZXNvbHZlX3RpbWVvdXQ6IDVtCmluaGliaXRfcnVsZXM6IAotIHNvdXJjZV9tYXRjaGVyczoKICAtICdzZXZlcml0eSA9IGNyaXRpY2FsJwogIHRhcmdldF9tYXRjaGVyczoKICAtICdzZXZlcml0eSA9fiB3YXJuaW5nfGluZm8nCiAgZXF1YWw6CiAgLSAnbmFtZXNwYWNlJwogIC0gJ2FsZXJ0bmFtZScKLSBzb3VyY2VfbWF0Y2hlcnM6CiAgLSAnc2V2ZXJpdHkgPSB3YXJuaW5nJwogIHRhcmdldF9tYXRjaGVyczoKICAtICdzZXZlcml0eSA9IGluZm8nCiAgZXF1YWw6CiAgLSAnbmFtZXNwYWNlJwogIC0gJ2FsZXJ0bmFtZScKLSBzb3VyY2VfbWF0Y2hlcnM6CiAgLSAnYWxlcnRuYW1lID0gSW5mb0luaGliaXRvcicKICB0YXJnZXRfbWF0Y2hlcnM6CiAgLSAnc2V2ZXJpdHkgPSBpbmZvJwogIGVxdWFsOgogIC0gJ25hbWVzcGFjZScKcm91dGU6CiAgZ3JvdXBfYnk6IFsnbmFtZXNwYWNlJ10KICBncm91cF93YWl0OiAzMHMKICBncm91cF9pbnRlcnZhbDogNW0KICByZXBlYXRfaW50ZXJ2YWw6IDEyaAogIHJlY2VpdmVyOiAnd2ViaG9va19yZWNlaXZlcicKICByb3V0ZXM6CiAgLSByZWNlaXZlcjogJ3dlYmhvb2tfcmVjZWl2ZXInCiAgICBtYXRjaGVyczoKICAgIC0gYWxlcnRuYW1lID1+ICJJbmZvSW5oaWJpdG9yfFdhdGNoZG9nIgpyZWNlaXZlcnM6Ci0gbmFtZTogJ3dlYmhvb2tfcmVjZWl2ZXInCiAgd2ViaG9va19jb25maWdzOgogIC0gdXJsOiAiaHR0cDovL2xvY2FsaG9zdDozMDMwL3dlYmhvb2siCiAgICBzZW5kX3Jlc29sdmVkOiBmYWxzZQp0ZW1wbGF0ZXM6Ci0gJy9ldGMvYWxlcnRtYW5hZ2VyL2NvbmZpZy8qLnRtcGwn
+kind: Secret
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"buildpiper.opstreelabs.in/v1","kind":"CustomAutoScaling","metadata":{"annotations":{},"name":"my-autoscaler","namespace":"test2"},"spec":{"applicationRef":{"deploymentName":"exporter-deployment","deploymentPort":"8090","deploymentService":"exporter-service"},"scalingParamsMapping":{"cpu":"500m","memory":"400Mi"},"scalingQuery":"sum(rate(container_cpu_usage_seconds_total{namespace=\"{{ .Namespace }}\",pod_name=\"{{ .Name }}\"}[1m])) by (pod_name)\n"}}
+  creationTimestamp: "2023-04-12T18:09:25Z"
+  name: my-autoscaler-alertsecret
+  namespace: test2
+  resourceVersion: "454443"
+  uid: 5089d9bb-b887-43f6-8240-1682c182003b
+type: Opaque

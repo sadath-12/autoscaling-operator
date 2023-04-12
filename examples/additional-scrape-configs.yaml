@@ -1,7 +1,0 @@
-apiVersion: v1
-data:
-  additional.yaml: LSBqb2JfbmFtZTogInByb21ldGhldXMiCiAgc3RhdGljX2NvbmZpZ3M6CiAgLSB0YXJnZXRzOiBbImxvY2FsaG9zdDo5MDkwIl0=
-kind: Secret
-metadata:
-  creationTimestamp: null
-  name: my-autoscaler-secret

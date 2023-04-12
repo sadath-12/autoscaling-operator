@@ -15,4 +15,4 @@ spec:
     cpu: 500m
     memory: 400Mi
   scalingQuery: |
-    sum(rate(container_cpu_usage_seconds_total{namespace="{{ .Namespace }}",pod_name="{{ .Name }}"}[1m])) by (pod_name)
+    sum(rate(container_cpu_usage_seconds_total{namespace="{{ .Namespace }}",pod_name="{{ .Name }}"}[1m])) by (pod_name) > 1

@@ -142,7 +142,7 @@ route:
 receivers:
 - name: 'webhook_receiver'
   webhook_configs:
-  - url: "https://webhook.site/7966a1b6-2633-4a6a-916c-cd74676c9f24"
+  - url: "http://localhost:3030/webhook"
     send_resolved: false
 templates:
 - '/etc/alertmanager/config/*.tmpl'`,
