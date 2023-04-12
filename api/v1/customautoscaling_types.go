@@ -29,8 +29,9 @@ type CustomAutoScalingSpec struct {
 
 // ApplicationReference defines the deployment to scale
 type ApplicationReference struct {
-	DeploymentName string `json:"deploymentName"`
-	DeploymentPort string `json:"deploymentPort"`
+	DeploymentName    string `json:"deploymentName"`
+	DeploymentPort    string `json:"deploymentPort"`
+	DeploymentService string `json:"deploymentService"`
 }
 
 // CustomAutoScalingStatus defines the observed state of CustomAutoScaling

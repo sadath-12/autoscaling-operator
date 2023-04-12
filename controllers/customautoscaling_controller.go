@@ -161,7 +161,7 @@ func (r *CustomAutoScalingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	// calculate the replica
 
 	// find and scale the deployment
-
+ 
 	return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 }
 

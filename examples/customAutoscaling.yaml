@@ -4,11 +4,12 @@ apiVersion: buildpiper.opstreelabs.in/v1
 kind: CustomAutoScaling
 metadata:
   name: my-autoscaler
-  namespace: test
+  namespace: test2
 spec:
   applicationRef:
     deploymentName: exporter-deployment
     deploymentPort: "8090"
+    deploymentService: exporter-service
     
   scalingParamsMapping:
     cpu: 500m

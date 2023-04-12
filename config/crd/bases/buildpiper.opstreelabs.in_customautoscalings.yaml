@@ -43,9 +43,12 @@ spec:
                     type: string
                   deploymentPort:
                     type: string
+                  deploymentService:
+                    type: string
                 required:
                 - deploymentName
                 - deploymentPort
+                - deploymentService
                 type: object
               scalingParamsMapping:
                 additionalProperties:

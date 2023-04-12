@@ -2,7 +2,9 @@ package utils
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"strconv"
 
 	autoscaler "buildpiper.opstreelabs.in/autoscaler/api/v1"
 	main "k8s.io/api/core/v1"
@@ -48,22 +50,34 @@ func createSecret(cr *autoscaler.CustomAutoScaling) (*main.Secret, error) {
 
 func generateSecretDef(cr *autoscaler.CustomAutoScaling) *main.Secret {
 
+	filecontent := fmt.Sprintf(`
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: [%s:%s]
+`, cr.Spec.ApplicationRef.DeploymentService, cr.Spec.ApplicationRef.DeploymentPort)
+
+	encodedFileContent := base64.StdEncoding.EncodeToString([]byte(filecontent))
+	quotedFileContent := strconv.Quote(encodedFileContent)
+
 	secret := &main.Secret{
 		TypeMeta:   generateMetaInformation("Secret", "v1"),
-		ObjectMeta: generateObjectMetaInformation(cr.Name+"-secret", cr.Namespace, cr.Labels, cr.Annotations),
+		ObjectMeta: generateObjectMetaInformation(cr.Name+"-secret", cr.Namespace, cr.ObjectMeta.Labels, cr.ObjectMeta.Annotations),
 		Type:       main.SecretTypeOpaque,
 		Data: map[string][]byte{
-			"scrape-config.yml": []byte(`
-additionalScrapeConfigs:
-- job_name: ` + cr.Name + `_server
-  static_configs:
-  - targets:
-    - ` + cr.Name + `-service:` + cr.Spec.ApplicationRef.DeploymentPort + `
-`),
+			"scrape-config.yml": []byte(quotedFileContent),
 		},
 	}
 
 	return secret
+
+	// 			"scrape-config.yml": []byte(`
+	// additionalScrapeConfigs:
+	// - job_name: ` + cr.Name + `_server
+	//   static_configs:
+	//   - targets:
+	//     - ` + cr.Spec.ApplicationRef.DeploymentService + `:` + cr.Spec.ApplicationRef.DeploymentPort + `
+	// `),
 
 }
 
