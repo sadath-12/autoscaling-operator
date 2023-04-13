@@ -149,13 +149,13 @@ func (r *CustomAutoScalingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 	}
 
-	_, err = utils.GetPrometheusInstance(instance)
+	_, err = utils.GetPrometheusRule(instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Prometheus Instance", instance.Name+"-prometheus-instance", "doesnt exist creating now ....")
-			_, err = utils.CreatePrometheusInstance(instance)
+			reqLogger.Info(instance.Name, "-prometheus-rule", "doesnt exist creating now ....")
+			_, err = utils.CreatePrometheusRule(instance)
 			if err != nil {
-				reqLogger.Error(fmt.Errorf("error while creating prometheus instance  %s", err.Error()), "")
+				reqLogger.Error(fmt.Errorf("error while creating prometheus rule  %s", err.Error()), "")
 				return ctrl.Result{RequeueAfter: time.Second * 15}, nil
 			}
 		} else {
@@ -163,9 +163,21 @@ func (r *CustomAutoScalingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 	}
 
+	_, err = utils.GetPrometheusInstance(instance)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info(instance.Name, "-prometheus-instance", "doesnt exist creating now ....")
+			_, err = utils.CreatePrometheusInstance(instance)
+			if err != nil {
+				reqLogger.Error(fmt.Errorf("error while creating prometheus instance  %s", err.Error()), "")
+				return ctrl.Result{}, nil
+			}
+		} else {
+			reqLogger.Error(fmt.Errorf("error while fetching service monitor for prometheus %s", err.Error()), "")
+		}
+	}
 
 	// add prometheus Rule
-	
 
 	// find and scale the deployment
 
@@ -202,7 +214,6 @@ func (r *CustomAutoScalingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *CustomAutoScalingReconciler) handleWebhook(w http.ResponseWriter, req *http.Request) {
 
-	
 	instance := &autoscaler.CustomAutoScaling{}
 
 	body, err := ioutil.ReadAll(req.Body)

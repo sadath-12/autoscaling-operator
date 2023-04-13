@@ -8,7 +8,6 @@ import (
 
 	autoscaler "buildpiper.opstreelabs.in/autoscaler/api/v1"
 	main "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -101,14 +100,15 @@ func createAlertConfigSecret(cr *autoscaler.CustomAutoScaling) (*main.Secret, er
 }
 
 func generateAlertsecretDef(cr *autoscaler.CustomAutoScaling) *main.Secret {
-	secret := &v1.Secret{
+
+	secret := &main.Secret{
 		TypeMeta:   generateMetaInformation("Secret", "v1"),
-		ObjectMeta: generateObjectMetaInformation(cr.Name+"-alertsecret", cr.Namespace, cr.Labels, cr.Annotations),
+		ObjectMeta: generateObjectMetaInformation(cr.Name+"-alertsecret", cr.Namespace, cr.ObjectMeta.Labels, cr.ObjectMeta.Annotations),
 		StringData: map[string]string{
 			"alertmanager.yaml": `
 global:
   resolve_timeout: 5m
-inhibit_rules: 
+inhibit_rules:
 - source_matchers:
   - 'severity = critical'
   target_matchers:
@@ -149,4 +149,5 @@ templates:
 		},
 	}
 	return secret
+
 }

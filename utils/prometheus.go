@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 
@@ -43,6 +44,13 @@ type PrometheusParams struct {
 	AdditionalScrapeConfigs   *main.SecretKeySelector
 	IgnoreNamespaceSelectors  bool
 	QueryLogFile              string
+	RulesSelector             metav1.LabelSelector
+}
+
+type PrometheusRuleParams struct {
+	Name      string
+	Namespace string
+	Groups    []v1.RuleGroup
 }
 
 func GetPrometheusInstance(cr *autoscaler.CustomAutoScaling) (*v1.Prometheus, error) {
@@ -104,6 +112,11 @@ func CreatePrometheusInstance(cr *autoscaler.CustomAutoScaling) (*v1.Prometheus,
 		RemoteWriteDashboards:     true,
 		IgnoreNamespaceSelectors:  false,
 		QueryLogFile:              "",
+		RulesSelector: metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app": cr.Name + "-prometheus-rule",
+			},
+		},
 		// need to define the secret
 		AdditionalScrapeConfigs: &main.SecretKeySelector{
 			LocalObjectReference: main.LocalObjectReference{
@@ -126,6 +139,7 @@ func CreatePrometheusInstance(cr *autoscaler.CustomAutoScaling) (*v1.Prometheus,
 
 	if err != nil {
 		logger.Error(fmt.Errorf("error while creating prometheus instance  %s  in namespace %s : %s", cr.Name, cr.Namespace, err.Error()), "")
+		return nil, err
 	}
 
 	logger.Info("prometheus instance created succesfully")
@@ -163,12 +177,10 @@ func generatePrometheusDef(params PrometheusParams, cr *autoscaler.CustomAutoSca
 
 		ObjectMeta: objectMeta,
 
-		
 		Spec: v1.PrometheusSpec{
 			// depricated
 			BaseImage: params.Image,
 
-			
 			Alerting: &v1.AlertingSpec{
 				Alertmanagers: []v1.AlertmanagerEndpoints{
 
@@ -183,15 +195,17 @@ func generatePrometheusDef(params PrometheusParams, cr *autoscaler.CustomAutoSca
 					},
 				},
 			},
-
-
+			RuleSelector:          &params.RulesSelector,
+			RuleNamespaceSelector: &metav1.LabelSelector{},
 
 			CommonPrometheusFields: v1.CommonPrometheusFields{
 				// this has more precedence
 				Image: &params.Image,
-				ServiceMonitorSelector: &metav1.LabelSelector{
-					MatchLabels: params.SVCMonitorSelector,
-				},
+				// ServiceMonitorSelector: &metav1.LabelSelector{
+				// 	MatchLabels: params.SVCMonitorSelector,
+				// },
+				ServiceMonitorSelector: &metav1.LabelSelector{},
+
 				Replicas: &params.Replicas,
 
 				Resources: main.ResourceRequirements{
@@ -249,40 +263,97 @@ func CreatePrometheusService(cr *autoscaler.CustomAutoScaling) (*main.Service, e
 
 }
 
-
-func CreatePrometheusRule(cr *autoscaler.CustomAutoScaling) (*v1.PrometheusRule,error){
-
+func CreatePrometheusRule(cr *autoscaler.CustomAutoScaling) (*v1.PrometheusRule, error) {
 	logger := k8sLogger(cr.Namespace, cr.Name+"-prometheus-instance")
 	client, err := generatePromClient()
-	
+	ruleName := cr.Name + "-prometheus-rule"
 
 	if err != nil {
 		logger.Error(fmt.Errorf("error while fetching prometheus client  %s  in namespace %s : %s", cr.Name, cr.Namespace, err.Error()), "")
 		panic(err)
 	}
 
+	params := PrometheusRuleParams{
+		Name:      ruleName,
+		Namespace: cr.Namespace,
+		Groups: []v1.RuleGroup{
+			{
+				Name: "rule",
+				Rules: []v1.Rule{
+					{
+						Alert: "demo-alert",
+						Expr:  intstr.FromString(cr.Spec.ScalingQuery),
+						For:   "10s",
+					},
+				},
+			},
+		},
+	}
+
+	promRuleDef := generatePrometheusRuleDef(cr, params)
+
+	promRule, err := client.MonitoringV1().PrometheusRules(cr.Namespace).Create(context.TODO(), promRuleDef, metav1.CreateOptions{})
+
+	if err != nil {
+		logger.Error(fmt.Errorf("error while creating prometheusRule  %s  in namespace %s : %s", ruleName, cr.Namespace, err.Error()), "")
+		return nil, err
+	}
+
+	logger.Info("Prometheus Rule created succesfully")
+
+	return promRule, nil
+}
+
+func GetPrometheusRule(cr *autoscaler.CustomAutoScaling) (*v1.PrometheusRule, error) {
+	logger := k8sLogger(cr.Namespace, cr.Name+"-prometheus-instance")
+	client, err := generatePromClient()
+	ruleName := cr.Name + "-prometheus-rule"
+
+	if err != nil {
+		logger.Error(fmt.Errorf("error while fetching prometheus client  %s  in namespace %s : %s", cr.Name, cr.Namespace, err.Error()), "")
+		panic(err)
+	}
+	promRule, err := client.MonitoringV1().PrometheusRules(cr.Namespace).Get(context.TODO(), ruleName, metav1.GetOptions{})
+
+	if err != nil {
+		logger.Error(fmt.Errorf("error while fetching prometheusRule  %s  in namespace %s : %s", ruleName, cr.Namespace, err.Error()), "")
+		return nil, err
+	}
+
+	logger.Info("Prometheus Rule fetched succesfully")
+
+	return promRule, nil
+}
+
+func generatePrometheusRuleDef(cr *autoscaler.CustomAutoScaling, parmas PrometheusRuleParams) *v1.PrometheusRule {
+
 	prometheusRule := &v1.PrometheusRule{
-        ObjectMeta: metav1.ObjectMeta{
-            Name:      "my-rules",
-            Namespace: "default",
-        },
-        Spec: v1.PrometheusRuleSpec{
-            Groups: []v1.RuleGroup{
-                {
-                    Name: "Count greater than 5",
-                    Rules: []v1.Rule{
-                        {
-                            Alert: "CountGreaterThan5",
-                            Expr:  intstr.FromString("ping_request_count > 5"),
-                            For:   "10s",
-                        },
-                    },
-                },
-            },
-        },
-    }
+		TypeMeta: generateMetaInformation("PrometheusRule", "monitoring.coreos.com/v1"),
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      parmas.Name,
+			Namespace: parmas.Namespace,
+			Labels: map[string]string{
+				"app": parmas.Name,
+			},
+		},
+		Spec: v1.PrometheusRuleSpec{
+			Groups: parmas.Groups,
+		},
+	}
 
-	promRule, err := client.MonitoringV1().PrometheusRules("default").Create(context.Background(), prometheusRule, metav1.CreateOptions{})
+	return prometheusRule
+}
 
-	return promRule,nil
+func generateAlertName(query string) string {
+	// Extract relevant details from the query
+	re := regexp.MustCompile(`sum\(rate\((?P<metric>[^{}]+){namespace="{{ .Namespace }}",pod_name="{{ .Name }}"\)\[1m\]\) by \(pod_name\) > 1`)
+	match := re.FindStringSubmatch(query)
+	if len(match) < 2 {
+		// Query doesn't match expected format
+		return "unknown_alert"
+	}
+	metric := match[1]
+
+	// Generate alert name based on metric and labels
+	return fmt.Sprintf("%s_high_cpu_usage", metric)
 }

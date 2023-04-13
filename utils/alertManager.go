@@ -144,7 +144,8 @@ func generateAlertManagerDef(params AlertManagerParams) *v1.Alertmanager {
 
 		Spec: v1.AlertmanagerSpec{
 
-			Replicas: &params.Replicas,
+			Replicas:     &params.Replicas,
+			ConfigSecret: params.Secrets[0],
 
 			AlertmanagerConfigSelector: &metav1.LabelSelector{
 				MatchLabels: params.ConfigSelector,
